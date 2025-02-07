@@ -114,7 +114,7 @@ marzban update
 Теперь можно попасть на марзбан по ссылке https://твой_домен.com:8000/dashboard
 ![marzban](https://github.com/user-attachments/assets/4a7e3d9b-508f-4576-80ad-7493d3a0ce08)
 ### Настройка протокола VLESS
-Заходим в настройки и редактируем конфиг следующим образом (добавляется секция VLESS TCP REALITY):
+Заходим в настройки и заменяем конфиг следующим образом (добавляется секция VLESS TCP REALITY, можно из старого все убрать и скопировать отсюда):
 ![vless](https://github.com/user-attachments/assets/5721705c-b4fd-4c53-81d6-f7f9c52bc85f)
 ```json
 {
