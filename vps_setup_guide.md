@@ -115,7 +115,6 @@ marzban update
 ![marzban](https://github.com/user-attachments/assets/4a7e3d9b-508f-4576-80ad-7493d3a0ce08)
 ### Настройка протокола VLESS
 Заходим в настройки и заменяем конфиг следующим образом (добавляется секция VLESS TCP REALITY, можно из старого все убрать и скопировать отсюда):
-![vless](https://github.com/user-attachments/assets/5721705c-b4fd-4c53-81d6-f7f9c52bc85f)
 ```json
 {
   "log": {
@@ -191,6 +190,7 @@ marzban update
   ]
 }
 ```
+![vless](https://github.com/user-attachments/assets/5721705c-b4fd-4c53-81d6-f7f9c52bc85f)
 После этого нажать сохранить и перезагрузить ядро.
 Теперь можно добавить пользователя, выбрать протокол VLESS, указать имя пользователя, развернуть на три точки настройки и указать Flow xtls-rprx-vision.
 После создания, в основном меню можно будет скопировать ссылку на подписку и ссылку конфигурации (типа vless//).
