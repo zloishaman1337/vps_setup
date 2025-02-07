@@ -1,4 +1,4 @@
-![изображение](https://github.com/user-attachments/assets/a9b7833c-3630-4eed-a120-6ea9e14d547d)<h1 align="center">Настройка VPS с нуля + Marzban + VLESS TCP REALITY + WireGuard с веб-интерфейсом</h2>
+<h1 align="center">Настройка VPS с нуля + Marzban + VLESS TCP REALITY + WireGuard с веб-интерфейсом</h2>
 
 ### Требования:
 - VPS
@@ -47,9 +47,8 @@ sudo systemctl enable fail2ban
 sudo systemctl start fail2ban
 sudo fail2ban-client status sshd
 ```
-<p align="center">
-  <img src="./assets/fail2ban.png" width="802" />
-</p>
+![fail2ban](https://github.com/user-attachments/assets/57899ed3-4f7c-4256-9fb2-4eeec5a1b10d)
+
 ### Установка docker
 ```bash
 sudo bash <(wget -qO- https://get.docker.com) @ -o get-docker.sh
@@ -113,11 +112,10 @@ sudo nano docker-compose.yml
 marzban update 
 ```
 Теперь можно попасть на марзбан по ссылке https://твой_домен.com:8000/dashboard
-
+![marzban](https://github.com/user-attachments/assets/4a7e3d9b-508f-4576-80ad-7493d3a0ce08)
 ### Настройка протокола VLESS
 Заходим в настройки и редактируем конфиг следующим образом (добавляется секция VLESS TCP REALITY):
-
-
+![vless](https://github.com/user-attachments/assets/5721705c-b4fd-4c53-81d6-f7f9c52bc85f)
 ```json
 {
   "log": {
@@ -307,7 +305,7 @@ docker compose up --detach
 ```bash
 docker ps -a
 ```
-
+![docker](https://github.com/user-attachments/assets/fba9fda3-1876-47d9-8aa7-c414fcfcf20e)
 Теперь у нас доступен веб-интерфейс WireGuard по адресу http://ваш_айпи_или_домен:51821
 Заходим, добавляем клиента, скачиваем конфиг и радуемся жизни.
 Однако если вы хотите более подробно настроить WireGuard, например указать другие ALLOWED_IPS и тп, то ниже я приведу список возможно нужных параметров:
