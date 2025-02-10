@@ -81,7 +81,7 @@ marzban cli admin create --sudo
 Нужно доменное имя, например на https://freedns.afraid.org/, проверить привязку можно на dnschecker
 - Скачаем утилиту для сертификатов и введем свой EMAIL
 ```bash
-sudo curl https://get.acme.sh | sh -s email=$(read -p "Enter your email: "; echo $REPLY)
+sudo curl https://get.acme.sh | sh -s email=ВАШ_EMAIL
 ```
 - Создадим директорию для сертификатов
 ```bash
