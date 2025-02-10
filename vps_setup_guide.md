@@ -62,6 +62,12 @@ sudo fail2ban-client status sshd
 ```bash
 sudo bash <(wget -qO- https://get.docker.com) @ -o get-docker.sh
 ```
+Если вы под рутом, то лучше делать без sudo, может не найти директории.
+Проверяем:
+```bash
+docker ps -a
+```
+Если в выводе есть пустая таблица докера - победа.
 ### Установка Marzban
 - Запустим установочный скрипт
 ```bash
