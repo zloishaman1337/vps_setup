@@ -209,6 +209,10 @@ marzban update
 ```bash
 docker exec marzban_marzban_1 xray x25519
 ```
+Контейнер Marzban'a может создаться с именем marzban-marzban-1, в таком случае команда будет:
+```bash
+docker exec marzban-marzban-1 xray x25519
+```
 Отсюда нас интересует значение, собственно, PrivateKey. Копируем его и вставляем в конфиг. Далее генерируем айди параметр `shortIds`
 ```bash
 openssl rand -hex 8
