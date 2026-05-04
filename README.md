@@ -1,4 +1,4 @@
-<h1 align="center">Настройка VPS с нуля + Marzban + VLESS TCP REALITY + WireGuard с веб-интерфейсом</h2>
+<h1 align="center">Настройка VPS с нуля + Marzban + VLESS TCP REALITY + nginx steal_oneself + WireGuard с веб-интерфейсом</h2>
 
 Данный гайд не предусматривает открытия портов, но если что вот список портов, необходимых для открытия:
 ```bash
@@ -6,12 +6,19 @@
 8000
 51821
 443
+1443
+8443
 ```
 
 ### Требования:
 - VPS
 - Ubuntu 22.04 и выше
 - Доступ по SSH, если еще нет
+- Привязка двух доменов к айпи VPS
+	- example.ru - fallback
+	- www.example.ru - VLESS Трафик
+### Зависимости:
+`docker fail2ban mc net-tools cron socat curl wget iperf3 nginx libnginx-mod-stream`
 
 ## Настройка сервера
 Апдейт системы, если еще не делали
@@ -21,7 +28,7 @@ sudo apt update && sudo apt upgrade -y
 ### Установка нужного ПО
 Может и не очень нужного, однако я его ставлю в большинстве случаев
 ```bash
-sudo apt install -y fail2ban mc net-tools cron socat curl wget
+sudo apt install -y fail2ban mc net-tools cron socat curl wget iperf3
 ```
 ### Включение bbr 
 Это поможет увеличить пропускную способность сетевого интерфейса
@@ -77,8 +84,8 @@ sudo bash -c "$(curl -sL https://github.com/Gozargah/Marzban-scripts/raw/master/
 ```bash
 marzban cli admin create --sudo
 ```
-### Настройка SSL для Marzban (не обязательно) 
-Нужно доменное имя, например на https://freedns.afraid.org/, проверить привязку можно на dnschecker
+### Настройка SSL для Marzban
+Здесь используем домен fallback, проверить привязку можно на dnschecker
 - Скачаем утилиту для сертификатов и введем свой EMAIL
 ```bash
 sudo curl https://get.acme.sh | sh -s email=ВАШ_EMAIL
@@ -87,10 +94,10 @@ sudo curl https://get.acme.sh | sh -s email=ВАШ_EMAIL
 ```bash
 sudo mkdir -p /var/lib/marzban/certs/
 ```
-- Получаем сертификаты (Вместо SUBDOMAIN1.DOMAIN вводим свой домен)
+- Получаем сертификаты (Вместо example.ru вводим свой домен)
 ```bash
 ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt --issue --standalone \
--d SUBDOMAIN1.DOMAIN \
+-d example.ru \
 --key-file /var/lib/marzban/certs/key.pem \
 --fullchain-file /var/lib/marzban/certs/fullchain.pem
 ```
@@ -107,18 +114,14 @@ sudo nano /opt/marzban/.env
 UVICORN_PORT = 8000
 UVICORN_SSL_CERTFILE = "/var/lib/marzban/certs/fullchain.pem"
 UVICORN_SSL_KEYFILE = "/var/lib/marzban/certs/key.pem"
-XRAY_SUBSCRIPTION_URL_PREFIX = https://YOUR_DOMAIN
+XRAY_SUBSCRIPTION_URL_PREFIX = https://example.ru
 ```
 - Сохраняем файл CTRL+C ENTER CTRL+X
 ### Переключение marzban на dev
 Как минимум для наличия русского языка и корректной работы телеграм бота
-- Переходим в директорию
-```bash
-sudo cd /opt/marzban
-```
 - Редактируем файл докера
 ```bash
-sudo nano docker-compose.yml
+sudo nano /opt/marzban/docker-compose.yml
 ```
 - Заменяем marzban:latest на marzban:dev
 - Сохраняем файл CTRL+C ENTER CTRL+X
@@ -128,6 +131,82 @@ marzban update
 ```
 Теперь можно попасть на марзбан по ссылке https://твой_домен.com:8000/dashboard
 ![marzban](https://github.com/user-attachments/assets/4a7e3d9b-508f-4576-80ad-7493d3a0ce08)
+### Поднимаем nginx для fallback и маскировки
+Ставим зависимости
+```bash
+apt install nginx libnginx-mod-stream -y
+```
+Проверяем установку модуля stram
+```bash
+nano /etc/nginx/modules-enabled/50-mod-stream.conf
+```
+Редачим конфигурацию
+```bash
+nano /etc/nginx/nginx.conf
+```
+
+```nginx
+stream {
+    map $ssl_preread_server_name $backend {
+        www.example.ru reality;
+        default web;
+    }
+
+    upstream reality {
+        server 127.0.0.1:1443;
+    }
+
+    upstream web {
+        server 127.0.0.1:8443;
+    }
+
+    server {
+        listen 443;
+        proxy_pass $backend;
+        ssl_preread on;
+    }
+}
+
+```
+Создаем сайт
+```bash
+nano /etc/nginx/sites-available/skufee
+```
+
+```nginx
+server {
+    listen 127.0.0.1:8443 ssl http2;
+    server_name _;
+
+    ssl_certificate /var/lib/marzban/certs/fullchain.pem;
+    ssl_certificate_key /var/lib/marzban/certs/key.pem;
+
+    root /var/www/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+
+```
+Делаем заглушку
+```bash
+echo "Hello, world" > /var/www/html/index.html
+```
+Применяем изменения и запускаем
+```bash
+ln -s /etc/nginx/sites-available/skufee /etc/nginx/sites-enabled/
+nginx -t
+systemctl enable nginx --now
+systemctl status nginx
+```
+Проверяем
+```bash
+curl -v https://example.ru
+curl -v https://www.example.ru
+```
+Должно возвращать по сути одно и тоже и получать хендшейки
 ### Настройка протокола VLESS
 Заходим в настройки и заменяем конфиг следующим образом (добавляется секция VLESS TCP REALITY, можно из старого все убрать и скопировать отсюда):
 ```json
@@ -149,8 +228,8 @@ marzban update
   "inbounds": [
     {
       "tag": "VLESS TCP REALITY",
-      "listen": "0.0.0.0",
-      "port": 443,
+      "listen": "127.0.0.1",
+      "port": 1443,
       "protocol": "vless",
       "settings": {
         "clients": [],
@@ -162,14 +241,14 @@ marzban update
         "security": "reality",
         "realitySettings": {
           "show": false,
-          "dest": "teamdocs.su:443",
+          "dest": "127.0.0.1:8443",
           "xver": 0,
           "serverNames": [
-            "teamdocs.su"
+            "www.example.ru"
           ],
-          "privateKey": "ВАШ_СГЕНЕРИРОВАННЫЙ_КЛЮЧ",
+          "privateKey": "ключ",
           "shortIds": [
-            "ВАШ_СГЕНЕРИРОВАННЫЙ_АЙДИ"
+            "айди"
           ]
         }
       },
@@ -337,25 +416,3 @@ docker ps -a
 ![docker](https://github.com/user-attachments/assets/fba9fda3-1876-47d9-8aa7-c414fcfcf20e)
 Теперь у нас доступен веб-интерфейс WireGuard по адресу http://ваш_айпи_или_домен:51821
 Заходим, добавляем клиента, скачиваем конфиг и радуемся жизни.
-Однако если вы хотите более подробно настроить WireGuard, например указать другие ALLOWED_IPS и тп, то ниже я приведу список возможно нужных параметров:
-| Env | Default | Example | Description                                                                                                                                          |
-| - | - | - |------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `PORT` | `51821` | `6789` |  TCP порт для Web UI.                                                                                                                                 |
-| `WEBUI_HOST` | `0.0.0.0` | `localhost` | IP адрес, к которму привязывается WEBUI.                                                                                                                          |
-| `PASSWORD_HASH` | - | `$2y$05$Ci...` | Если включено - запрашивает ввод пароля при авторизации |
-| `WG_HOST` | - | `vpn.myserver.com` | Публичное имя вашего сервера.                                                                                                              |
-| `WG_DEVICE` | `eth0` | `ens6f0` | Ethernet интерфейс, в который должен быть перенаправлен трафик.                                                                                   |
-| `WG_PORT` | `51820` | `12345` | Публичный UDP-порт вашего VPN-сервера. WireGuard будет слушать его внутри контейнера Docker.                                 |
-| `WG_MTU` | `null` | `1420` | MTU, который будут использовать клиенты.                                                                                            |
-| `WG_PERSISTENT_KEEPALIVE` | `0` | `25` | Значение в секундах, чтобы держать «подключение» открытым. Если это значение 0, то соединения не будут сохранены..                                            |
-| `WG_DEFAULT_ADDRESS` | `10.8.0.x` | `10.6.0.x` | Диапазон IP-адресов клиентов. |
-| `WG_DEFAULT_DNS` | `1.1.1.1` | `8.8.8.8, 8.8.4.4` | DNS Сервера, которые будут использовать клиенты. |
-| `WG_ALLOWED_IPS` | `0.0.0.0/0, ::/0` | `192.168.15.0/24, 10.0.1.0/24` | Разрешенные IP адреса клиентов. |
-| `WG_ENABLE_EXPIRES_TIME` | `false` | `true`                         | Включение срок действия клиентов |
-| `LANG` | `en` | `de` | Язык Web UI (Поддержка: en, ua, ru, tr, no, pl, fr, de, ca, es, ko, vi, nl, is, pt, chs, kht, it, th, hi, ja, si).                                        |
-| `UI_TRAFFIC_STATS` | `false` | `true` | Включить подробную статистику клиентов RX/TX в Web UI |
-| `WG_ENABLE_ONE_TIME_LINKS` | `false` | `true` | Включить отображение и генерацию коротких одноразовых ссылок для загрузки (срок действия 5 минут) |
-| `MAX_AGE` | `0` | `1440` | Максимальный возраст сеансов веб-интерфейсов в минутах. 0Это означает, что сеанс будет существовать до тех пор, пока браузер не будет закрыт. |
-| `UI_ENABLE_SORT_CLIENTS` | `false` | `true`                         | Включить сортировку по клиентов по имени   |
-| `ENABLE_PROMETHEUS_METRICS` | `false` | `true`                       | Включить метрики для Prometheus `http://0.0.0.0:51821/metrics` и `http://0.0.0.0:51821/metrics/json`|
-| `PROMETHEUS_METRICS_PASSWORD` | - | `$2y$05$Ci...` | Включает авторизацию для отправки метрик |
